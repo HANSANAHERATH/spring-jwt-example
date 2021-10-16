@@ -1,15 +1,16 @@
 package com.jwt.example.springjwtexample.security;
 
-import java.util.Date;
-
+import com.jwt.example.springjwtexample.repository.BlackListTokenRepository;
 import com.jwt.example.springjwtexample.security.services.UserDetailsImpl;
+import io.jsonwebtoken.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
-import io.jsonwebtoken.*;
+import java.util.Date;
 
 @Component
 public class JwtUtils {
@@ -20,6 +21,9 @@ public class JwtUtils {
 
     @Value("${bezkoder.app.jwtExpirationMs}")
     private int jwtExpirationMs;
+
+    @Autowired
+    private BlackListTokenRepository blackListTokenRepository;
 
     public String generateJwtToken(Authentication authentication) {
 
@@ -54,5 +58,14 @@ public class JwtUtils {
         }
 
         return false;
+    }
+
+    public boolean isBlackListedToken(String username, String token) {
+        try {
+            String redisToken = blackListTokenRepository.findTokenByUserName(username);
+            return redisToken.equals(token);
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

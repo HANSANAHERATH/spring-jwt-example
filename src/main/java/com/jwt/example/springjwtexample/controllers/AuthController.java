@@ -1,10 +1,5 @@
 package com.jwt.example.springjwtexample.controllers;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 import com.jwt.example.springjwtexample.dto.JwtResponse;
 import com.jwt.example.springjwtexample.dto.LoginRequest;
 import com.jwt.example.springjwtexample.dto.MessageResponse;
@@ -12,22 +7,26 @@ import com.jwt.example.springjwtexample.dto.SignupRequest;
 import com.jwt.example.springjwtexample.entity.Role;
 import com.jwt.example.springjwtexample.entity.UserDetails;
 import com.jwt.example.springjwtexample.enums.ERole;
+import com.jwt.example.springjwtexample.repository.BlackListTokenRepository;
 import com.jwt.example.springjwtexample.repository.RoleRepository;
 import com.jwt.example.springjwtexample.repository.UserDetailsRepository;
 import com.jwt.example.springjwtexample.security.JwtUtils;
 import com.jwt.example.springjwtexample.security.services.UserDetailsImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
@@ -47,6 +46,9 @@ public class AuthController {
 
     @Autowired
     JwtUtils jwtUtils;
+
+    @Autowired
+    BlackListTokenRepository blackListTokenRepository;
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
@@ -122,4 +124,17 @@ public class AuthController {
 
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }
+
+    @PostMapping("/signout")
+    public ResponseEntity<?> signOut(@RequestBody LoginRequest loginRequest, @RequestHeader(value = "Authorization", required = true) String token) {
+        if (StringUtils.hasText(token) && token.startsWith("Bearer ")) {
+            String tokenWithoutBearer = token.substring(7);
+            String username = jwtUtils.getUserNameFromJwtToken(tokenWithoutBearer);
+            blackListTokenRepository.saveToken(username, tokenWithoutBearer);
+            return ResponseEntity.ok("Logged out user " + username);
+        }
+
+        return ResponseEntity.internalServerError().body(null);
+    }
+
 }
